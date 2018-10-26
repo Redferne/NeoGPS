@@ -87,9 +87,9 @@ public:
 
     //................................................................
 
-    bool enable_msg( ublox::msg_class_t msg_class, ublox::msg_id_t msg_id )
+    bool enable_msg( ublox::msg_class_t msg_class, ublox::msg_id_t msg_id, uint8_t rate )
     {
-      return send( ublox::cfg_msg_t( msg_class, msg_id, 1 ) );
+      return send( ublox::cfg_msg_t( msg_class, msg_id, rate ) );
     }
 
     bool disable_msg( ublox::msg_class_t msg_class, ublox::msg_id_t msg_id )
@@ -110,9 +110,11 @@ public:
 
     bool send_request_P( const ublox::msg_t & msg )
       {
-        write_P( msg );
+        write_PGM( msg );
         return true;
       }
+
+    void wakeup(void);
 
     //................................................................
     // Send a message and wait for a reply (blocking).
@@ -197,7 +199,7 @@ protected:
         crc_b += crc_a;
     };
     void write( const ublox::msg_t & msg );
-    void write_P( const ublox::msg_t & msg );
+    void write_PGM( const ublox::msg_t & msg );
 
     //................................................................
     // When the processing style is polling (not interrupt), this
@@ -309,6 +311,28 @@ private:
     bool parseHnrPvt( uint8_t chr );
 
     bool parseFix( uint8_t c );
+
+    bool parseTTFF( uint8_t chr )
+    {
+      #if defined(GPS_TTFF_UPTIME)
+      if (chrCount == 8) {
+        m_fix.uptime = 0;
+      }
+      ((uint8_t *) &m_fix.ttff)[ chrCount-8 ] = chr;
+      #endif
+      return true;
+    }
+
+    bool parseUptime( uint8_t chr )
+    {
+      #if defined(GPS_TTFF_UPTIME)
+      if (chrCount == 12) {
+        m_fix.uptime = 0;
+      }
+      ((uint8_t *) &m_fix.uptime)[ chrCount-12 ] = chr;
+      #endif
+      return true;
+    }
 
     bool parseTOW( uint8_t chr )
     {

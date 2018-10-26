@@ -359,9 +359,11 @@ void NMEAGPS::storeFix()
           gps_fix & currentFix = m_fix;
         #endif
 
-        if (currentFix.valid.time && (currentFix.dateTime_cs == 0))
+        if (currentFix.valid.time && (currentFix.dateTime_cs == 0)) {
           UTCsecondStart( _IntervalStart );
-
+//          Serial.print(_IntervalStart);
+//          Serial.println(F(" <-- _IntervalStart"));
+        }
       #endif
 
       #if NMEAGPS_FIX_MAX > 0
@@ -566,6 +568,7 @@ NMEAGPS::decode_t NMEAGPS::parseCommand
       const char *        table_i = (const char *        ) pgm_read_ptr( &table[i] );
 
       for (;;) {
+        // Crash here if NMEAGPS_RECOGNIZE_ALL is not enabled for ESP32/ESP8266
         char rc = pgm_read_byte( &table_i[cmdCount] );
         if (c == rc) {
           // ok so far...

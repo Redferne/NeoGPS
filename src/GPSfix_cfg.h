@@ -33,6 +33,8 @@
  *
  */
 
+#define GPS_COARSE_DATE
+#define GPS_COARSE_TIME
 #define GPS_FIX_DATE
 #define GPS_FIX_TIME
 #define GPS_FIX_LOCATION
@@ -42,15 +44,14 @@
 //#define GPS_FIX_VELNED
 #define GPS_FIX_HEADING
 #define GPS_FIX_SATELLITES
-//#define GPS_FIX_HDOP
-//#define GPS_FIX_VDOP
-//#define GPS_FIX_PDOP
-//#define GPS_FIX_LAT_ERR
-//#define GPS_FIX_LON_ERR
-//#define GPS_FIX_ALT_ERR
-//#define GPS_FIX_SPD_ERR
-//#define GPS_FIX_HDG_ERR
-//#define GPS_FIX_TIME_ERR
-//#define GPS_FIX_GEOID_HEIGHT
+#define GPS_TTFF_UPTIME
+#define GPS_FIX_HDOP
+#define GPS_FIX_VDOP
+#define GPS_FIX_PDOP
+#define GPS_FIX_LAT_ERR
+#define GPS_FIX_LON_ERR
+#define GPS_FIX_ALT_ERR
+#define GPS_FIX_SPD_ERR
+#define GPS_FIX_GEOID_HEIGHT
 
 #endif

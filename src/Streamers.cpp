@@ -484,6 +484,6 @@ void trace_all( Print & outs, const NMEAGPS &gps, const gps_fix &fix )
          << gps.statistics.chars  << ',';
   #endif
 
-  outs << '\n';
+  outs << "\n\r";
 
 } // trace_all

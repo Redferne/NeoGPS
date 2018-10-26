@@ -30,12 +30,12 @@
 // sentences contain time information.  Both date and time are 
 // required if you will be doing time_t-to-clock_t operations.
 
-#define NMEAGPS_PARSE_GGA
+//#define NMEAGPS_PARSE_GGA
 //#define NMEAGPS_PARSE_GLL
 //#define NMEAGPS_PARSE_GSA
 //#define NMEAGPS_PARSE_GSV
 //#define NMEAGPS_PARSE_GST
-#define NMEAGPS_PARSE_RMC
+//#define NMEAGPS_PARSE_RMC
 //#define NMEAGPS_PARSE_VTG
 //#define NMEAGPS_PARSE_ZDA
 
@@ -45,7 +45,8 @@
 // to determine when the GPS quiet time begins, and thus
 // when you can perform "some" time-consuming operations.
 
-#define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_RMC
+//#define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_RMC
+#define LAST_SENTENCE_IN_INTERVAL (nmea_msg_t) NMEA_LAST_MSG+5 /* ubloxNMEA::PUBX_04 */
 
 // NOTE: For PUBX-only, PGRM and UBX configs, use
 //          (NMEAGPS::nmea_msg_t)(NMEAGPS::NMEA_LAST_MSG+1)
@@ -199,9 +200,10 @@
 //#define NMEAGPS_SAVE_TALKER_ID
 //#define NMEAGPS_PARSE_TALKER_ID
 
-//#define NMEAGPS_PARSE_PROPRIETARY
+#define NMEAGPS_PARSE_PROPRIETARY
 #ifdef NMEAGPS_PARSE_PROPRIETARY
   //#define NMEAGPS_SAVE_MFR_ID
+// For UBX
   #define NMEAGPS_PARSE_MFR_ID
 #endif
 
@@ -210,11 +212,11 @@
 // optionally, all the info for each satellite.
 //
 
-//#define NMEAGPS_PARSE_SATELLITES
-//#define NMEAGPS_PARSE_SATELLITE_INFO
+#define NMEAGPS_PARSE_SATELLITES
+#define NMEAGPS_PARSE_SATELLITE_INFO
 
 #ifdef NMEAGPS_PARSE_SATELLITES
-  #define NMEAGPS_MAX_SATELLITES (20)
+  #define NMEAGPS_MAX_SATELLITES (22)
 
   #ifndef GPS_FIX_SATELLITES
     #error GPS_FIX_SATELLITES must be defined in GPSfix.h!
@@ -239,7 +241,8 @@
 // If not defined, virtuals are not used, with a slight size (2 bytes) and 
 // execution time savings.
 
-//#define NMEAGPS_DERIVED_TYPES
+// For UBX
+#define NMEAGPS_DERIVED_TYPES
 
 #ifdef NMEAGPS_DERIVED_TYPES
   #define NMEAGPS_VIRTUAL virtual
@@ -285,7 +288,7 @@
 // of a sentence is received and the last field parser 
 // indicated that it still needs one.
 
-#define NMEAGPS_COMMA_NEEDED
+//#define NMEAGPS_COMMA_NEEDED
 
 //------------------------------------------------------
 //  Some applications may want to recognize a sentence type
@@ -295,13 +298,15 @@
 //  message is not enabled by a NMEAGPS_PARSE_xxx define above.
 //  No valid flags will be true for those sentences.
 
+#if defined(ESP32) | defined(ESP8266)
 #define NMEAGPS_RECOGNIZE_ALL
+#endif
 
 //------------------------------------------------------
 // Sometimes, a little extra space is needed to parse an intermediate form.
 // This config items enables extra space.
 
-//#define NMEAGPS_PARSING_SCRATCHPAD
+#define NMEAGPS_PARSING_SCRATCHPAD
 
 //------------------------------------------------------
 // If you need to know the exact UTC time at *any* time,
@@ -320,7 +325,7 @@
 //    NOTE:  At update rates higher than 1Hz, the updates may arrive with 
 //    some increasing variance.
 
-//#define NMEAGPS_TIMESTAMP_FROM_INTERVAL
+#define NMEAGPS_TIMESTAMP_FROM_INTERVAL
 
 // 2) From the PPS pin of the GPS module.  It is up to the application 
 //    developer to decide how to capture that event.  For example, you could:

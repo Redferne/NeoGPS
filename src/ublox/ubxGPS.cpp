@@ -49,6 +49,12 @@
 
 using namespace ublox;
 
+//#define DEBUG_UBX
+//#define DEBUG_TIMEUTC
+//#define DEBUG_TIMEGPS
+
+#define PRINTF printf
+//#define PRINTF
 //----------------------------------
 
 void ubloxGPS::rxBegin()
@@ -59,6 +65,9 @@ void ubloxGPS::rxBegin()
     #if defined(NMEAGPS_TIMESTAMP_FROM_INTERVAL) & \
         ( defined(GPS_FIX_DATE) | defined(GPS_FIX_TIME) )
       _IntervalStart = micros();
+#ifdef DEBUG_UBX
+      PRINTF("UBX Interval Complete\n\r");
+#endif
     #endif
 
     intervalComplete( false );
@@ -91,6 +100,7 @@ bool ubloxGPS::rxEnd()
     #endif
 
     visible_msg = true;
+    ack_expected = false;
 //if (!visible_msg) trace << F("XXX");
 
     if (storage) {
@@ -99,6 +109,9 @@ bool ubloxGPS::rxEnd()
         reply_received = true;
         reply = (msg_t *) NULL;
         visible_msg = false;
+#ifdef DEBUG_UBX
+PRINTF("reply received!");
+#endif
       } else {
         storage->msg_class = rx().msg_class;
         storage->msg_id    = rx().msg_id;
@@ -114,13 +127,13 @@ bool ubloxGPS::rxEnd()
 } // rxEnd
 
 //---------------------------------------------------------
-
+#if 0
 static char toHexDigit( uint8_t val )
 {
   val &= 0x0F;
   return (val >= 10) ? ((val - 10) + 'A') : (val + '0');
 }
-
+#endif
 //---------------------------------------------------------
 
 ubloxGPS::decode_t ubloxGPS::decode( char c )
@@ -128,12 +141,13 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
     decode_t res = DECODE_CHR_OK;
     uint8_t chr = c;
 
-//Serial.print( '-' );
-//Serial.print( rxState );
-//Serial.print( 'x' );
-//Serial.print( toHexDigit(c >> 4) );
-//Serial.print( toHexDigit(c) );
-
+#if 0
+Serial.print( '-' );
+Serial.print( rxState );
+Serial.print( 'x' );
+Serial.print( toHexDigit(c >> 4) );
+Serial.print( toHexDigit(c) );
+#endif
     switch ((ubxState_t) rxState) {
 
       case UBX_IDLE:
@@ -158,25 +172,29 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
 
       case UBX_HEAD:
 //if ((c != '\r') && (c != '\n')) trace << '&' << toHexDigit(c >> 4) << toHexDigit(c);
+#if 0
           m_rx_msg.crc_a += chr;
           m_rx_msg.crc_b += m_rx_msg.crc_a;
-
+#endif
           switch (chrCount++) {
             case 0:
               rx().msg_class = (msg_class_t) chr;
-//if ((uint8_t) chr < 0x10)
-//  NeoSerial.print( '0' );
-//NeoSerial.print( chr, HEX );
+              m_rx_msg.crc_a = 0;
+              m_rx_msg.crc_b = 0;
+#ifdef DEBUG_UBX
+PRINTF("\n\rUBX: C%02X", chr);
+#endif
               break;
             case 1:
               rx().msg_id = (msg_id_t) chr;
-//NeoSerial.print( '/' );
-//if ((uint8_t) chr < 0x10)
-//  NeoSerial.print( '0' );
-//NeoSerial.print( (uint8_t) chr, HEX );
-//NeoSerial.write( ' ' );
+#ifdef DEBUG_UBX
+PRINTF(" I%02X", chr);
+#endif
               break;
             case 2:
+#ifdef DEBUG_UBX
+PRINTF(" %02X", chr);
+#endif
               rx().length = chr;
               break;
             case 3:
@@ -185,12 +203,18 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
                 rxBegin();
                 rxState = (rxState_t) UBX_IDLE;
               }
+#ifdef DEBUG_UBX
+PRINTF(" %02X", chr);
+#endif
               chrCount = 0;
               rxState = (rxState_t) UBX_RECEIVING_DATA;
-              
+
               NMEAGPS_INIT_FIX(m_fix);
-              
+
               if (rx().msg_class == UBX_ACK) {
+#ifdef DEBUG_UBX
+PRINTF(" UBX-ACK");
+#endif
                 if (ack_expected)
                   ack_same_as_sent = true; // so far...
               } else if (reply_expected && rx().same_kind( *reply ))
@@ -199,10 +223,13 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
                 storage = storage_for( rx() );
               break;
           }
+          m_rx_msg.crc_a += chr;
+          m_rx_msg.crc_b += m_rx_msg.crc_a;
+
           break;
 
         case UBX_RECEIVING_DATA:
-//trace << hex << chr;
+
           m_rx_msg.crc_a += chr;
           m_rx_msg.crc_b += m_rx_msg.crc_a;
 
@@ -217,34 +244,56 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
               ack_same_as_sent = false;
           }
 
+#ifdef DEBUG_UBX
+PRINTF(" %02X", chr);
+#endif
           if (++chrCount >= rx().length) {
+
+#ifdef DEBUG_UBX
+PRINTF("!");
+#endif
             // payload size received
             rxState = (rxState_t) UBX_CRC_A;
           }
           break;
 
       case UBX_CRC_A:
-          if (chr != m_rx_msg.crc_a) {
+#ifdef DEBUG_UBX
+PRINTF(" CRC A=%02X!%02X", m_rx_msg.crc_a, chr);
+#endif
+          if ((chr != m_rx_msg.crc_a) && chr && chr !=0xff && chr != 0xfe) {
             // All the values are suspect.  Start over.
             m_fix.valid.init();
             rx().msg_class = UBX_UNK;
             #ifdef NMEAGPS_STATS
               statistics.errors++;
             #endif
+#ifdef DEBUG_UBX
+PRINTF(" FAIL\n\r");
+#endif
           }
           rxState = (rxState_t) UBX_CRC_B;
           break;
 
       case UBX_CRC_B:
-          if (chr != m_rx_msg.crc_b) {
+#ifdef DEBUG_UBX
+PRINTF(" B=%02X!%02X", m_rx_msg.crc_b, chr);
+#endif
+          if ((chr != m_rx_msg.crc_b) && chr && chr !=0xff && chr != 0xfe) {
             // All the values are suspect.  Start over.
             m_fix.valid.init();
             rx().msg_class = UBX_UNK;
             #ifdef NMEAGPS_STATS
               statistics.errors++;
             #endif
+#ifdef DEBUG_UBX
+PRINTF(" FAIL\n\r");
+#endif
           } else if (rxEnd()) {
             res = DECODE_COMPLETED;
+#ifdef DEBUG_UBX
+PRINTF(" OK\n\r");
+#endif
             #ifdef NMEAGPS_STATS
               statistics.ok++;
             #endif
@@ -286,7 +335,7 @@ ubloxGPS::decode_t ubloxGPS::decode( char c )
 void ubloxGPS::wait_for_idle()
 {
   // Wait for the input buffer to be emptied
-  for (uint8_t waits=0; waits < 8; waits++) {
+  for (uint8_t waits=0; waits < 16; waits++) {
     run();
     if (!receiving() || !waiting())
       break;
@@ -309,7 +358,7 @@ bool ubloxGPS::wait_for_ack()
       uint8_t rx_chars = m_device->available();
       wait_for_idle();
       sent = millis();
-      
+
       if (rx_chars) {
         //  If chars were received, decrease idle_time by the
         //    number of character times (TODO: use current baud rate)
@@ -343,7 +392,7 @@ bool ubloxGPS::wait_for_ack()
       sent = ms;
       run();
     }
-  } while ((idle_time < 300) && ((removed_idle_time+idle_time) < 1000));
+  } while ((idle_time < 600) && ((removed_idle_time+idle_time) < 4*600));
 
   //Serial.print( F("! -") );
   //Serial.println( removed_idle_time );
@@ -351,6 +400,11 @@ bool ubloxGPS::wait_for_ack()
   return false;
 
 } // wait_for_ack
+
+void ubloxGPS::wakeup(void)
+{
+  m_device->print( (char) 0xFF );
+}
 
 //---------------------------------------------------------
 
@@ -376,7 +430,7 @@ void ubloxGPS::write( const msg_t & msg )
 
 //---------------------------------------------------------
 
-void ubloxGPS::write_P( const msg_t & msg )
+void ubloxGPS::write_PGM( const msg_t & msg )
 {
   m_device->print( (char) SYNC_1 );
   m_device->print( (char) SYNC_2 );
@@ -471,11 +525,13 @@ bool ubloxGPS::parseField( char c )
 
   uint8_t chr = c;
 
-  switch (rx().msg_class) {
+  msg_class_t cls = rx().msg_class;
+  msg_id_t id = rx().msg_id;
 
+  switch (cls) {
     case UBX_NAV: //=================================================
 //if (chrCount == 0) Serial << F(" NAV ") << (uint8_t) rx().msg_id;
-      switch (rx().msg_id) {
+      switch (id) {
         case UBX_NAV_STATUS : return parseNavStatus ( chr );
         case UBX_NAV_POSLLH : return parseNavPosLLH ( chr );
         case UBX_NAV_PVT    : return parseNavPvt    ( chr );
@@ -488,7 +544,7 @@ bool ubloxGPS::parseField( char c )
       }
       break;
     case UBX_HNR: //=================================================
-      switch (rx().msg_id) {
+      switch (id) {
         case UBX_HNR_PVT : return parseHnrPvt( chr );
         default          : break;
       }
@@ -498,7 +554,7 @@ bool ubloxGPS::parseField( char c )
     case UBX_ACK: //=================================================
       break;
     case UBX_CFG: //=================================================
-      switch (rx().msg_id) {
+      switch (id) {
         case UBX_CFG_MSG: //--------------------------------------
           #ifdef UBLOX_PARSE_CFGMSG
           #endif
@@ -516,8 +572,16 @@ bool ubloxGPS::parseField( char c )
       }
       break;
     case UBX_MON: //=================================================
-      switch (rx().msg_id) {
+      switch (id) {
         case UBX_MON_VER:
+        case UBX_MON_HW:
+
+          #if 0
+          SerialUSB.print(c);
+          SerialUSB.print(" ");
+          SerialUSB.println(chrCount);
+          #endif
+
           #ifdef UBLOX_PARSE_MONVER
           #endif
           break;
@@ -558,6 +622,18 @@ bool ubloxGPS::parseNavStatus( uint8_t chr )
           m_fix.status = ublox::nav_status_t::to_status( m_fix.status, flags );
 //trace << m_fix.status << ' ';
         }
+        break;
+      case 7:
+        { ublox::nav_status_t::psmstate_t psmstate =
+            *((ublox::nav_status_t::psmstate_t *) &chr);
+          m_fix.psmstate = psmstate;
+        }
+        break;
+      case 8: case 9: case 10: case 11:
+        ok = parseTTFF( chr );
+        break;
+      case 12: case 13: case 14: case 15:
+        ok = parseUptime( chr );
         break;
     }
   #endif
@@ -626,7 +702,6 @@ bool ubloxGPS::parseNavDOP   ( uint8_t chr )
 
 bool ubloxGPS::parseNavPvt( uint8_t chr )
 {
-  bool ok = true;
 
 //if (chrCount == 0) trace << F( "pvt ");
   #ifdef UBLOX_PARSE_PVT
@@ -700,7 +775,7 @@ bool ubloxGPS::parseNavPvt( uint8_t chr )
       case 21:
         {
           //  It's a little annoying that the valid flag appears before
-          //    the corresponding members, but it's ok to set the validity 
+          //    the corresponding members, but it's ok to set the validity
           //    flags now.
           ublox::nav_pvt_t::flags_t flags = *((ublox::nav_pvt_t::flags_t *) &chr);
           #if defined(GPS_FIX_LOCATION) | defined(GPS_FIX_LOCATION_DMS)
@@ -750,7 +825,7 @@ bool ubloxGPS::parseNavPvt( uint8_t chr )
           m_fix.valid.satellites = true;
           break;
       #endif
-      
+
       #if defined( GPS_FIX_LOCATION ) | defined( GPS_FIX_LOCATION_DMS )
         case 24: case 25: case 26: case 27:
           #ifdef GPS_FIX_LOCATION
@@ -915,7 +990,7 @@ bool ubloxGPS::parseNavPvt( uint8_t chr )
 
     }
   #endif
-
+  return true;
 } // parseNavPvt
 
 //---------------------------------------------------------
@@ -1142,7 +1217,7 @@ bool ubloxGPS::parseNavVelNED( uint8_t chr )
 
     }
   #endif
-  
+
   return ok;
 
 } // parseVelNED
@@ -1163,23 +1238,32 @@ bool ubloxGPS::parseNavTimeGPS( uint8_t chr )
           break;
         case 10:
           GPSTime::leap_seconds = (int8_t) chr;
+#ifdef DEBUG_TIMEGPS
+PRINTF("Leap1: %i", GPSTime::leap_seconds);
+#endif
           break;
         case 11:
           {
             ublox::nav_timegps_t::valid_t &v =
               *((ublox::nav_timegps_t::valid_t *) &chr);
+#ifdef DEBUG_TIMEGPS
+PRINTF("GPS Valid 0x%02X", chr);
+#endif
+            #if !defined(GPS_COARSE_TIME)
             if (!v.leap_seconds)
               GPSTime::leap_seconds = 0; // oops!
+            #endif
 //else trace << F("leap ") << GPSTime::leap_seconds << ' ';
             if (GPSTime::leap_seconds != 0) {
               if (!v.time_of_week) {
-                m_fix.valid.date =
-                m_fix.valid.time = false;
-              } else if ((GPSTime::start_of_week() == 0) &&
-                         m_fix.valid.date && m_fix.valid.time) {
+                m_fix.valid.date = m_fix.valid.time = false;
+              } else if ((GPSTime::start_of_week() == 0) && m_fix.valid.date && m_fix.valid.time) {
                 GPSTime::start_of_week( m_fix.dateTime );
 //trace << m_fix.dateTime << '.' << m_fix.dateTime_cs;
               }
+#ifdef DEBUG_TIMEGPS
+PRINTF("Leap2: %i DT: %lu", GPSTime::leap_seconds, m_fix.dateTime);
+#endif
             }
           }
           break;
@@ -1198,7 +1282,7 @@ bool ubloxGPS::parseNavTimeGPS( uint8_t chr )
 
     }
   #endif
-  
+
   return ok;
 
 } // parseNavTimeGPS
@@ -1213,40 +1297,102 @@ bool ubloxGPS::parseNavTimeUTC( uint8_t chr )
   #ifdef UBLOX_PARSE_TIMEUTC
     #if defined(GPS_FIX_TIME) | defined(GPS_FIX_DATE)
       switch (chrCount) {
-
+        case 0: case 1: case 2: case 3:
+          {
+            scratchpad.U1[chrCount] = chr;
+            if (chrCount == 3) {
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC TOW: %lu", scratchpad.U4);
+#endif
+            }
+          }
+          break;
+        case 4: case 5: case 6: case 7:
+          {
+            scratchpad.U1[chrCount-4] = chr;
+            if (chrCount == 7) {
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC ACC: %lu", scratchpad.U4);
+#endif
+            }
+          }
+          break;
+        case 8: case 9: case 10: case 11:
+          {
+            scratchpad.U1[chrCount-8] = chr;
+            if (chrCount == 11) {
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Nano: %lu", scratchpad.U4);
+#endif
+            }
+          }
+          break;
         #if defined(GPS_FIX_DATE)
           case 12: NMEAGPS_INVALIDATE( date );
                    m_fix.dateTime.year   = chr; break;
-          case 13: m_fix.dateTime.year   =
+          case 13: { m_fix.dateTime.year   =
                     ((((uint16_t)chr) << 8) + m_fix.dateTime.year) % 100;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Year: %i", m_fix.dateTime.year);
+#endif
+                  }
             break;
-          case 14: m_fix.dateTime.month  = chr; break;
-          case 15: m_fix.dateTime.date   = chr; break;
+          case 14: { m_fix.dateTime.month  = chr;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Month: %i", m_fix.dateTime.month);
+#endif
+                  }
+                  break;
+          case 15: { m_fix.dateTime.date   = chr;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Day: %i", m_fix.dateTime.day);
+#endif
+                  }
+                  break;
         #endif
 
         #if defined(GPS_FIX_TIME)
-          case 16: NMEAGPS_INVALIDATE( time );
-                   m_fix.dateTime.hours   = chr; break;
-          case 17: m_fix.dateTime.minutes = chr; break;
-          case 18: m_fix.dateTime.seconds = chr; break;
+          case 16: { NMEAGPS_INVALIDATE( time );
+                     m_fix.dateTime.hours   = chr;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Hours: %i", m_fix.dateTime.hours);
+#endif
+                  }
+                  break;
+          case 17: { m_fix.dateTime.minutes = chr;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Minutes: %i", m_fix.dateTime.minutes);
+#endif
+                 }
+                 break;
+          case 18: { m_fix.dateTime.seconds = chr;
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Seconds: %i", m_fix.dateTime.seconds);
+#endif
+                  }
+                  break;
         #endif
 
         case 19:
           {
             ublox::nav_timeutc_t::valid_t &v =
               *((ublox::nav_timeutc_t::valid_t *) &chr);
-
-            #if defined(GPS_FIX_DATE)
+#ifdef DEBUG_TIMEUTC
+PRINTF("UTC Valid: 0x%02X ", chr);
+#endif
+            #if defined(GPS_COARSE_DATE)
+              m_fix.valid.date = (v.week_number & v.time_of_week);
+            #elif defined(GPS_FIX_DATE)
               m_fix.valid.date = (v.UTC & v.time_of_week);
             #endif
-            #if defined(GPS_FIX_TIME)
+            #if defined(GPS_COARSE_TIME)
+              m_fix.valid.time = (v.week_number & v.time_of_week);
+            #elif defined(GPS_FIX_TIME)
               m_fix.valid.time = (v.UTC & v.time_of_week);
             #endif
 
             #if defined(GPS_FIX_TIME) & defined(GPS_FIX_DATE)
-              if (m_fix.valid.date &&
-                  (GPSTime::start_of_week() == 0) &&
-                  (GPSTime::leap_seconds    != 0))
+              if (m_fix.valid.date && (GPSTime::start_of_week() == 0) && (GPSTime::leap_seconds != 0))
                 GPSTime::start_of_week( m_fix.dateTime );
             #endif
 //trace << m_fix.dateTime << F(".") << m_fix.dateTime_cs;
@@ -1256,7 +1402,7 @@ bool ubloxGPS::parseNavTimeUTC( uint8_t chr )
       }
     #endif
   #endif
-  
+
   return ok;
 
 } // parseNavTimeUTC
@@ -1290,7 +1436,7 @@ bool ubloxGPS::parseNavSVInfo( uint8_t chr )
 
             switch (i) {
               case 1: satellites[sat_count].id        = chr; break;
-              
+
               #ifdef NMEAGPS_PARSE_SATELLITE_INFO
                 case 0: satellites[sat_count].tracked   = (chr != 255); break;
                 case 4: satellites[sat_count].snr       = chr; break;
@@ -1300,7 +1446,7 @@ bool ubloxGPS::parseNavSVInfo( uint8_t chr )
                   satellites[sat_count].azimuth += (chr << 8);
                   break;
               #endif
-              
+
               case 11: sat_count++; break;
             }
           }
@@ -1309,7 +1455,7 @@ bool ubloxGPS::parseNavSVInfo( uint8_t chr )
       #endif
     }
   #endif
-  
+
   return ok;
 
 } // parseNavSVInfo
@@ -1518,8 +1664,8 @@ bool ubloxGPS::parseFix( uint8_t c )
     {
       gps_fix::STATUS_NONE,
       gps_fix::STATUS_EST,   // dead reckoning only
-      gps_fix::STATUS_STD,   // 2D
-      gps_fix::STATUS_STD,   // 3D
+      gps_fix::STATUS_2D,   // 2D
+      gps_fix::STATUS_3D,   // 3D
       gps_fix::STATUS_STD,   // GPS + dead reckoning
       gps_fix::STATUS_TIME_ONLY
     };

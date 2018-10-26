@@ -47,12 +47,22 @@ namespace ublox {
       {
         UBX_ACK_NAK      = 0x00, // Reply to CFG messages
         UBX_ACK_ACK      = 0x01, // Reply to CFG messages
+        UBX_CFG_PRT      = 0x00, // Port config
         UBX_CFG_MSG      = 0x01, // Configure which messages to send
         UBX_CFG_RST      = 0x04, // Reset command
         UBX_CFG_RATE     = 0x08, // Configure message rate
+        UBX_CFG_CFG      = 0x09, // Clear, Save and Load Configuration
+        UBX_CFG_RXM      = 0x11, // RX Mode
+        UBX_CFG_ANT      = 0x13, // Antenna (LNA) Mode
+        UBX_CFG_SBAS     = 0x16, // Configure SBAS
         UBX_CFG_NMEA     = 0x17, // Configure NMEA protocol
         UBX_CFG_NAV5     = 0x24, // Configure navigation engine settings
+        UBX_CFG_TP5      = 0x31, // Configure TIMEPULSE PPS output
+        UBX_CFG_PM2      = 0x3b, // Configure Power Management
+        UBX_CFG_GNSS     = 0x3e, // Configure GNSS (GLONASS)
         UBX_MON_VER      = 0x04, // Monitor Receiver/Software version
+        UBX_MON_HW       = 0x09, // Monitor Hardware Status
+        UBX_MON_HW2      = 0x0b, // Monitor Hardware Status 2
         UBX_NAV_POSLLH   = 0x02, // Current Position
         UBX_NAV_STATUS   = 0x03, // Receiver Navigation Status
         UBX_NAV_DOP      = 0x04, // Dilutions of Precision
@@ -64,6 +74,7 @@ namespace ublox {
         UBX_NAV_TIMEUTC  = 0x21, // Current UTC Time
         UBX_NAV_SVINFO   = 0x30, // Space Vehicle Information
         UBX_HNR_PVT      = 0x00, // High rate Position, Velocity and Time
+        UBX_RXM_PMREQ    = 0x41, // Power Management command
         UBX_ID_UNK   = 0xFF
       }  __attribute__((packed));
 
@@ -111,42 +122,434 @@ namespace ublox {
     } __attribute__((packed));
 
     struct cfg_msg_t : msg_t {
+
         msg_class_t  cfg_msg_class;
         msg_id_t     cfg_msg;
-        uint8_t      rate;
+        uint8_t      rate0; // UART0,1,SPI,USB etc..
+        uint8_t      rate1;
+        uint8_t      rate2;
+        uint8_t      rate3;
+        uint8_t      rate4;
+        uint8_t      rate5;
 
         cfg_msg_t( msg_class_t m, msg_id_t i, uint8_t r )
           : msg_t( UBX_CFG, UBX_CFG_MSG, UBX_MSG_LEN(*this) )
         {
+          init();
           cfg_msg_class = m;
           cfg_msg       = i;
-          rate          = r;
+          rate0 = rate1 = rate2 = rate3 = rate4 = rate5 = r;
+        };
+    } __attribute__((packed));
+
+    // Glonass Configuration
+
+    struct cfg_gnss_t : msg_t {
+
+        struct cfg_block_t
+        {
+          uint8_t gnssid;
+          uint8_t restrkch;
+          uint8_t maxtrkch;
+          uint8_t reserved1;
+          uint32_t enable; // Bit 0
+        } __attribute__((packed));
+
+        uint8_t     msgver;
+        uint8_t     numtrchhw;    // Read only
+        uint8_t     numtrchuse;   // 0xFF?
+        uint8_t     numconfigblocks;   // 0xFF?
+        cfg_block_t configblock[];
+
+        cfg_gnss_t()
+          : msg_t( UBX_CFG, UBX_CFG_GNSS, UBX_MSG_LEN(*this) )
+        {
+          init();
+        };
+    } __attribute__((packed));
+
+    // SAVE,LOAD CONFIGURATION (LE)
+
+    struct cfg_cfg_t : msg_t {
+
+        struct cfg_mask_t
+        {
+          bool ioport      :1; // Byte 0
+          bool msgconf     :1;
+          bool infmsg      :1;
+          bool navconf     :1;
+          bool rxmconf     :1;
+          uint8_t reserved1;   // Byte 1
+          bool rinvconf    :1;
+          bool antconf     :1;
+          uint8_t reserved2;
+          uint8_t reserved3;
+        } __attribute__((packed));
+
+        struct cfg_device_t
+        {
+          bool devbbr       :1;
+          bool devflash     :1;
+          bool deveeprom    :1;
+          bool reserved1    :1;
+          bool devspiflash  :1;
+        } __attribute__((packed));
+
+        cfg_mask_t    clearmask;
+        cfg_mask_t     savemask;
+        cfg_mask_t     loadmask;
+        cfg_device_t devicemask;
+
+        cfg_cfg_t(struct cfg_mask_t clear, struct cfg_mask_t save, struct cfg_mask_t load, struct cfg_device_t device )
+          : msg_t( UBX_CFG, UBX_CFG_CFG, UBX_MSG_LEN(*this) )
+        {
+          init();
+          clearmask = clear;
+          savemask = save;
+          loadmask = load;
+          devicemask = device;
+        };
+    } __attribute__((packed));
+
+    // ANTENNA CONFIGURATION (LE)
+
+    struct cfg_ant_t : msg_t {
+
+        struct cfg_flags_t
+        {
+          bool svcs       :1; // Byte 0
+          bool scd        :1;
+          bool ocd        :1;
+          bool pdwnonscd  :1;
+          bool recovery   :1;
+          uint8_t reserved1;
+        } __attribute__((packed));
+
+        struct cfg_pins_t
+        {
+          uint8_t pinswitch  :5;
+          uint8_t reserved1  :3;
+          uint8_t pinscd     :5;
+          uint8_t reserved2  :3;
+          uint8_t pinocd     :5;
+          bool    reconfig   :1;
+        } __attribute__((packed));
+
+        cfg_flags_t   flags;
+        cfg_pins_t    pins;
+
+        cfg_ant_t(struct cfg_flags_t flag, struct cfg_pins_t pin )
+          : msg_t( UBX_CFG, UBX_CFG_SBAS, UBX_MSG_LEN(*this) )
+        {
+          init();
+          flags = flag;
+          pins = pin;
+        };
+    } __attribute__((packed));
+
+    // SBAS Configuration (LE)
+
+    struct cfg_sbas_t : msg_t {
+
+        struct cfg_usage_t
+        {
+          bool range      :1;
+          bool diffcorr   :1;
+          bool integrity  :1;
+        } __attribute__((packed));
+
+        uint8_t      mode;
+        cfg_usage_t  usage;
+        uint8_t      maxSBAS;
+        uint8_t      scanmode2;
+        uint32_t     scanmode1;
+
+        cfg_sbas_t( bool on_off )
+          : msg_t( UBX_CFG, UBX_CFG_SBAS, UBX_MSG_LEN(*this) )
+        {
+          init();
+          if (on_off) {
+            mode = 0x80;
+            usage.range = 1;
+            usage.diffcorr = 1;
+            usage.integrity = 1;
+            maxSBAS = 3;
+            scanmode2 = scanmode1 = 0;
+          } else {
+            mode = maxSBAS =  0;
+            scanmode2 = 0xFE;
+            scanmode1 = 0xFFFF;
+          }
+        };
+    } __attribute__((packed));
+
+    // RX Mode
+
+    struct cfg_rxm_t : msg_t {
+
+        uint8_t      reserved1;
+        uint8_t      lpMode;
+
+        cfg_rxm_t( uint8_t mode )
+          : msg_t( UBX_CFG, UBX_CFG_RXM, UBX_MSG_LEN(*this) )
+        {
+          init();
+          reserved1 = 0x8;
+          lpMode = mode; // 4 = eco, 1= powersave, 0 = max performance
         };
     } __attribute__((packed));
 
     extern bool configNMEA( ubloxGPS &gps, NMEAGPS::nmea_msg_t msgType, uint8_t rate );
-    
-    // Reset command
-    struct cfg_reset_t : msg_t {
 
-      struct bbr_section_t
+    // Power Management parameters (LE)
+    struct cfg_pm2_t : msg_t {
+
+      struct pm2_flags_t
         {
-          bool ephermeris            :1;
-          bool almanac               :1;
-          bool health                :1;
-          bool klobuchard            :1;
-          bool position              :1;
-          bool clock_drift           :1;
-          bool osc_param             :1;
-          bool utc_param             :1;
-          bool rtc                   :1;
-          bool reserved1             :2;
-          bool sfdr_param            :1;
-          bool sfdr_veh_mon_param    :1;
-          bool tct_param             :1;
+          uint8_t reserved1          :4; // Byte 0
+          bool extintselect          :1;
+          bool extintwake            :1;
+          bool extintbackup          :1;
           bool reserved2             :1;
-          bool autonomous_orbit_param:1;
+          uint8_t limitpeakcurr      :2; // Byte 1
+          bool waittimefix           :1;
+          bool updatertc             :1;
+          bool updateeph             :1;
+          uint8_t reserved3          :3;
+          bool donotoff              :1; // Byte 2
+          uint8_t mode               :2;
+          bool reserved4             :1; // 13;
+          uint8_t reserved5;
         } __attribute__((packed));
+
+//         flags 0x00, 0x90, 0x01, 0x01,
+
+      uint8_t version;
+      uint8_t reserved1;
+      uint8_t reserved2;
+      uint8_t reserved3;
+      pm2_flags_t flags;
+      uint32_t updatePeriod; // ms 0=never retry
+      uint32_t searchPeriod; // ms acquisistion retry 0=disable
+      int32_t gridOffset; // ms to GPS SoW
+      uint16_t onTime; //s ontime after successful fix
+      uint16_t minAcqTime; //s minimal search time
+      uint16_t reserved4;
+      uint16_t reserved5;
+      uint32_t reserved6;
+      uint32_t reserved7;
+      uint8_t reserved8;
+      uint8_t reserved9;
+      uint16_t reserved10;
+      uint32_t reserved11;
+
+      cfg_pm2_t(uint32_t update, uint32_t search, uint16_t ontime, uint16_t minacqtime, struct pm2_flags_t flag)
+        : msg_t( UBX_CFG, UBX_CFG_PM2, UBX_MSG_LEN(*this) )
+          {
+            init();
+            version = 1;
+            reserved1 = reserved2 = reserved3 = reserved4 =
+            reserved5 = reserved6 = reserved7 = reserved8 =
+            reserved9 = reserved10 = reserved11 = gridOffset = 0;
+            updatePeriod = update;
+            searchPeriod = search;
+            onTime = ontime;
+            minAcqTime = minacqtime;
+            flags = flag;
+//            flags = 10E00; // cyclic, inactive, update eph+rtx,wait for time, nolimit, disable ints
+          }
+
+    }  __attribute__((packed));
+
+    // Timepulse parameters (LE)
+    struct cfg_tp5_t : msg_t {
+
+      struct cfg_flags_t {
+        bool active            :1;  // Byte 0
+        bool lockgpsfreq       :1;
+        bool lockedotherset    :1;
+        bool isfreq            :1;
+        bool islength          :1;
+        bool aligntotow        :1;
+        bool polarity          :1;
+        bool gridutcgps        :1;
+        uint8_t reserved1;
+        uint8_t reserved2;
+        uint8_t reserved3;
+      } __attribute__((packed));
+
+      uint8_t tpIdx;
+      uint8_t reserved0;
+      uint16_t reserved1;
+      int16_t antCableDelay; // ns
+      int16_t rfGroupDelay; // ns
+      uint32_t freqPeriod; // us Freq or Period (isFreq bit)
+      uint32_t freqPeriodLock; // us If locked
+      uint32_t pulseLenRatio; // us (isLength)
+      uint32_t pulseLenRadioLock; // us
+      int32_t userConfigDelay; // ns timepulse delay
+      cfg_flags_t flags;
+
+      cfg_tp5_t(uint8_t idx, uint32_t period, uint16_t len, bool active, bool pol)
+        : msg_t( UBX_CFG, UBX_CFG_TP5, UBX_MSG_LEN(*this) )
+          {
+            init();
+            tpIdx = idx;
+            reserved0 = reserved1 = antCableDelay = rfGroupDelay =
+            userConfigDelay = 0;
+            freqPeriod = freqPeriodLock = period;
+            pulseLenRatio = pulseLenRadioLock = len;
+            flags.active = active;
+            flags.polarity = pol;
+/*
+            if (active)
+              flags = 0x57; // UTC, Rising Edge, Pulselength, Period, Locked, TimeValid
+            else
+              flags = 0x16; // UTC, Falling Edge, Pulselength, Period, Locked, TimeValid
+*/
+          }
+
+    }  __attribute__((packed));
+
+    // Port command (LE)
+    struct cfg_prt_t : msg_t {
+
+      struct cfg_txready_t
+      {
+        bool en         :1;
+        bool pol        :1;
+        uint8_t pin     :5;
+        uint16_t thres  :9;
+      } __attribute__((packed));
+
+      struct cfg_mode_t
+      {
+        uint8_t reserved1    :4;
+        bool    a4_compat    :1;
+        bool    reserved2    :1;
+        uint8_t charlen      :2;
+        bool    reserved3    :1;
+        uint8_t parity       :3;
+        uint8_t stopbits     :2;
+        uint16_t reserved4;
+      } __attribute__((packed));
+
+      uint8_t       portid;
+      uint8_t       reserved0;
+      cfg_txready_t txready;
+      cfg_mode_t    mode;
+      uint32_t      baudrate;
+      uint16_t      inprotomask;
+      uint16_t      outprotomask;
+      uint16_t      reserved4;
+      uint16_t      reserved5;
+
+      cfg_prt_t(uint32_t baud, uint16_t proto)
+        : msg_t( UBX_CFG, UBX_CFG_PRT, UBX_MSG_LEN(*this) )
+          {
+            init();
+            portid = 1; // UART 1
+            mode.a4_compat = 1;
+            mode.charlen = 3; // 8
+            mode.parity = 4;  // N
+            mode.stopbits = 0; // 1
+            inprotomask = outprotomask = proto; // 1 = UBX, 2 = NMEA, 3=BOTH
+          }
+
+    }  __attribute__((packed));
+
+    // Mon hardware status
+    struct mon_hw_t : msg_t {
+
+      struct cfg_flags_t {
+        bool    rtccalib       :1;  // Byte 0
+        bool    safeboot       :1;
+        uint8_t jammingstate   :2;
+      } __attribute__((packed));
+
+      uint32_t pinSel;
+      uint32_t pinBank;
+      uint32_t pinDir;
+      uint32_t pinVal;
+      uint16_t noiseperms;
+      uint16_t agccnt; // AGC 0 -> 8191
+      uint8_t  astatus; // Antenna 0=INIT, 1=DONTKNOW, 2=OK, 3=SHORT, 4=OPEN
+      uint8_t  apower; // Antenna Power 0=OFF, 1=ON, 2=DONTKNOW
+      cfg_flags_t  flags;
+      uint8_t  reserved1;
+      uint32_t usedmask;
+      uint8_t  vp[25];
+      uint8_t  jamind; // 0=NO CW JAM, 255 STRONG CW JAM
+      uint16_t reserved3;
+      uint32_t pinIrq;
+      uint32_t pullH;
+      uint32_t pullL;
+
+      mon_hw_t()
+        : msg_t( UBX_MON, UBX_MON_HW, UBX_MSG_LEN(*this) )
+          { init(); }
+
+    }  __attribute__((packed));
+
+    // Mon hardware status2
+    struct mon_hw2_t : msg_t {
+
+      int8_t   ofsi;
+      uint8_t  magi;
+      int8_t   ofsq;
+      uint8_t  magq;
+      uint8_t  cfgsource; // 114 ROM, 111 OTP, 112 PINS, 102 FLASH
+      uint8_t  reserved1;
+      uint8_t  reserved2;
+      uint8_t  reserved3;
+      uint32_t lowlevcfg; // ???
+      uint16_t reserved4;
+      uint16_t reserved5;
+      uint32_t poststatus; // ???
+      uint32_t reserved6;
+
+      mon_hw2_t()
+        : msg_t( UBX_MON, UBX_MON_HW2, UBX_MSG_LEN(*this) )
+          { init(); }
+
+    }  __attribute__((packed));
+
+    // Mon ver
+    struct mon_ver_t : msg_t {
+      char swVersion[30];
+      char hwVersion[10];
+      mon_ver_t()
+        : msg_t( UBX_MON, UBX_MON_VER, UBX_MSG_LEN(*this) )
+          { init(); }
+
+    }  __attribute__((packed));
+
+    // Power command (LE)
+    struct rxm_pmreq_t : msg_t {
+
+      struct pmreq_flags_t
+        {
+          bool    reserved1         :1;
+          bool    backup            :1;
+          uint8_t reserved2;
+          uint8_t reserved3;
+          uint8_t reserved4;
+        } __attribute__((packed));
+
+      uint32_t      duration_ms;
+      pmreq_flags_t flags;
+
+      rxm_pmreq_t(uint32_t duration, bool backup_mode)
+        : msg_t( UBX_RXM, UBX_RXM_PMREQ, UBX_MSG_LEN(*this) )
+          {
+             init();
+             duration_ms = duration;
+             flags.backup = backup_mode;
+          }
+
+    }  __attribute__((packed));
+
+    // Reset command (LE)
 
       enum reset_mode_t
         {
@@ -158,17 +561,44 @@ namespace ublox {
           CONTROLLED_GPS_START         = 0x09
         } __attribute__((packed));
 
+    struct cfg_rst_t : msg_t {
+
+      struct bbr_section_t
+        {
+          bool eph                   :1;
+          bool alm                   :1;
+          bool health                :1;
+          bool klob                  :1;
+          bool pos                   :1;
+          bool clkd                  :1;
+          bool osc                   :1;
+          bool utc                   :1;
+          bool rtc                   :1;
+          bool reserved1             :1;
+          bool reserved2             :1;
+          bool sfdr                  :1;
+          bool vmon                  :1;
+          bool tct                   :1;
+          bool reserved3             :1;
+          bool aop                   :1;
+        } __attribute__((packed));
+
       bbr_section_t clear_bbr_section;
       reset_mode_t  reset_mode : 8;
       uint8_t       reserved   : 8;
 
-      cfg_reset_t()
+      cfg_rst_t(struct bbr_section_t mask, enum reset_mode_t mode)
         : msg_t( UBX_CFG, UBX_CFG_RST, UBX_MSG_LEN(*this) )
-          { init(); }
+          {
+            init();
+            clear_bbr_section = mask;
+            reset_mode = mode;
+          }
 
     }  __attribute__((packed));
 
     // Configure navigation rate
+
     enum time_ref_t {
       UBX_TIME_REF_UTC=0,
       UBX_TIME_REF_GPS=1
@@ -177,11 +607,13 @@ namespace ublox {
     struct cfg_rate_t : msg_t {
         uint16_t        GPS_meas_rate;
         uint16_t        nav_rate;
-        enum time_ref_t time_ref:16;
+        uint16_t        time_ref;
+        // enum time_ref_t time_ref:16;
 
         cfg_rate_t( uint16_t gr, uint16_t nr, enum time_ref_t tr )
           : msg_t( UBX_CFG, UBX_CFG_RATE, UBX_MSG_LEN(*this) )
         {
+          init();
           GPS_meas_rate = gr;
           nav_rate      = nr;
           time_ref      = tr;
@@ -207,6 +639,7 @@ namespace ublox {
     } __attribute__((packed));
 
     struct cfg_nav5_t : msg_t {
+
         struct parameter_mask_t {
             bool dyn_model            :1;
             bool min_elev             :1;
@@ -223,7 +656,7 @@ namespace ublox {
           struct parameter_mask_t apply;
           uint16_t                apply_word;
         } __attribute__((packed));
-                
+
         enum dyn_model_t       dyn_model:8;
         enum position_fix_t    fix_mode:8;
         int32_t                fixed_alt;          // m MSL x0.01
@@ -242,6 +675,7 @@ namespace ublox {
 
         cfg_nav5_t() : msg_t( UBX_CFG, UBX_CFG_NAV5, UBX_MSG_LEN(*this) )
           {
+            init();
             apply_word = 0xFF00;
             always_zero_1 =
             always_zero_2 =
@@ -266,6 +700,8 @@ namespace ublox {
     // Receiver Navigation Status
     struct nav_status_t : msg_t {
         uint32_t time_of_week; // mS
+
+        // 4 GpsFix
         enum status_t {
           NAV_STAT_NONE,
           NAV_STAT_DR_ONLY,
@@ -276,6 +712,7 @@ namespace ublox {
         } __attribute__((packed))
             status;
 
+        // 5 flags
         struct flags_t {
           bool gps_fix:1;
           bool diff_soln:1;
@@ -283,16 +720,24 @@ namespace ublox {
           bool time_of_week:1;
         } __attribute__((packed))
           flags;
-        
+
         static gps_fix::status_t to_status( enum gps_fix::status_t status, flags_t flags )
         {
           if (!flags.gps_fix)
             return gps_fix::STATUS_NONE;
           if (flags.diff_soln)
             return gps_fix::STATUS_DGPS;
-          return status;
+          switch (status) {
+            case NAV_STAT_DR_ONLY  : return gps_fix::STATUS_EST;
+            case NAV_STAT_2D       : return gps_fix::STATUS_2D;
+            case NAV_STAT_3D       : return gps_fix::STATUS_3D;
+            case NAV_STAT_GPS_DR   : return gps_fix::STATUS_STD;
+            case NAV_STAT_TIME_ONLY: return gps_fix::STATUS_TIME_ONLY;
+            default                : return gps_fix::STATUS_NONE;
+          }
         }
-        
+
+        // 6
         struct {
           bool dgps_input:1;
           bool _skip_:6;
@@ -300,6 +745,16 @@ namespace ublox {
         }  __attribute__((packed))
           fix_status;
 
+        // 7 flags2
+        enum psmstate_t {
+          PSM_ACQUISITION,
+          PSM_TRACKING,
+          PSM_POWER_OPTIMIZED_TRACKING,
+          PSM_INACTIVE
+        } __attribute__((packed))
+            psmstate;
+
+/*
         enum {
           PSM_ACQUISITION,
           PSM_TRACKING,
@@ -307,7 +762,18 @@ namespace ublox {
           PSM_INACTIVE
         }
           power_safe:2; // FW > v7.01
-
+*/
+/*
+        enum flags2_t {
+          PSM_ACQUISITION,
+          PSM_TRACKING,
+          PSM_POWER_OPTIMIZED_TRACKING,
+          PSM_INACTIVE
+        } __attribute__((packed))
+            flags2;
+*/
+/*
+*/
         uint32_t time_to_first_fix; // ms time tag
         uint32_t uptime; // ms since startup/reset
 
@@ -439,7 +905,7 @@ namespace ublox {
         int32_t  heading;      // degrees * 1e5
         uint32_t speed_acc;    // cm/s
         uint32_t heading_acc;  // degrees * 1e5
-        
+
         nav_velned_t() : msg_t( UBX_NAV, UBX_NAV_VELNED, UBX_MSG_LEN(*this) ) {};
     }  __attribute__((packed));
 
@@ -498,11 +964,11 @@ namespace ublox {
           bool    orbit_AOP   :1; // orbit info is AssistNow Autonomous
           bool    smoothed    :1; // Carrier smoothed pseudorange used
           enum {
-              IDLE, 
-              SEARCHING, 
-              ACQUIRED, 
-              UNUSABLE, 
-              CODE_LOCK, 
+              IDLE,
+              SEARCHING,
+              ACQUIRED,
+              UNUSABLE,
+              CODE_LOCK,
               CODE_AND_CARRIER_LOCK_1,
               CODE_AND_CARRIER_LOCK_2,
               CODE_AND_CARRIER_LOCK_3

@@ -28,7 +28,7 @@ namespace NeoGPS {
 //  If this is defined, epoch mutators are available.
 //  If this is not defined, the epoch is a hard-coded constant.
 //     Only epoch accessors are available.
-//#define TIME_EPOCH_MODIFIABLE
+#define TIME_EPOCH_MODIFIABLE
 
 /**
  * Number of seconds elapsed since January 1 of the Epoch Year,
@@ -41,7 +41,7 @@ const uint8_t  MINUTES_PER_HOUR   = 60;
 const uint16_t SECONDS_PER_HOUR   = (uint16_t) SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 const uint8_t  HOURS_PER_DAY      = 24;
 const uint32_t SECONDS_PER_DAY    = (uint32_t) SECONDS_PER_HOUR * HOURS_PER_DAY;
-const uint8_t  DAYS_PER_WEEK      = 7;
+const uint8_t  DAYS_IN_A_WEEK      = 7;
 
 /**
  * Common date/time structure
@@ -192,7 +192,7 @@ struct time_t {
    */
   static uint8_t weekday_for(uint16_t dayno)
   {
-    return ((dayno+epoch_weekday()-1) % DAYS_PER_WEEK) + 1;
+    return ((dayno+epoch_weekday()-1) % DAYS_IN_A_WEEK) + 1;
   }
 
   /**
@@ -282,10 +282,10 @@ protected:
     static uint8_t  s_epoch_offset;
     static uint8_t  s_epoch_weekday;
   #else
-    static const uint16_t s_epoch_year    = Y2K_EPOCH_YEAR;
+    static const uint16_t s_epoch_year    = POSIX_EPOCH_YEAR;
     static const uint8_t  s_pivot_year    = s_epoch_year % 100;
     static const uint8_t  s_epoch_offset  = s_pivot_year;
-    static const uint8_t  s_epoch_weekday = Y2K_EPOCH_WEEKDAY;
+    static const uint8_t  s_epoch_weekday = POSIX_EPOCH_WEEKDAY;
   #endif
 
 } NEOGPS_PACKED;

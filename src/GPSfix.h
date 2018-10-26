@@ -239,6 +239,11 @@ public:
     uint8_t   satellites;
   #endif
 
+  #ifdef GPS_TTFF_UPTIME
+    uint32_t ttff;
+    uint32_t uptime;
+  #endif
+
   //--------------------------------------------------------
   //  Date and Time for the fix
   #if defined(GPS_FIX_DATE) | defined(GPS_FIX_TIME)
@@ -267,6 +272,8 @@ public:
     STATUS_NONE,
     STATUS_EST,
     STATUS_TIME_ONLY,
+    STATUS_2D,
+    STATUS_3D,
     STATUS_STD,
     STATUS_DGPS,
     STATUS_RTK_FLOAT,
@@ -275,6 +282,15 @@ public:
   };
 
   status_t  status NEOGPS_BF(8);
+
+  enum psmstate_t {
+    PSM_ACQUISITION,
+    PSM_TRACKING,
+    PSM_POWER_OPTIMIZED_TRACKING,
+    PSM_INACTIVE
+  };
+
+  uint8_t psmstate;
 
   //--------------------------------------------------------
   //  Flags to indicate which members of this fix are valid.
@@ -418,6 +434,10 @@ public:
       pdop = 0;
     #endif
 
+    #ifdef GPS_TTFF_UPTIME
+      ttff = uptime = 0;
+    #endif
+
     #ifdef GPS_FIX_LAT_ERR
       lat_err_cm = 0;
     #endif
@@ -471,7 +491,18 @@ public:
     if (r.valid.status && (!valid.status || (status < r.status)))
       status = r.status;
 
-    #ifdef GPS_FIX_DATE
+    #ifdef GPS_TTFF_UPTIME
+      uptime = r.uptime;
+      psmstate = r.psmstate;
+    #endif
+
+    #ifdef GPS_COARSE_DATE
+      if (r.valid.location) {
+        dateTime.date  = r.dateTime.date;
+        dateTime.month = r.dateTime.month;
+        dateTime.year  = r.dateTime.year;
+      }
+    #elif defined(GPS_FIX_DATE)
       if (r.valid.date) {
         dateTime.date  = r.dateTime.date;
         dateTime.month = r.dateTime.month;
@@ -479,7 +510,14 @@ public:
       }
     #endif
 
-    #ifdef GPS_FIX_TIME
+    #ifdef GPS_COARSE_TIME
+      if (r.valid.time) {
+        dateTime.hours   = r.dateTime.hours;
+        dateTime.minutes = r.dateTime.minutes;
+        dateTime.seconds = r.dateTime.seconds;
+        dateTime_cs      = r.dateTime_cs;
+      }
+    #elif defined(GPS_FIX_TIME)
       if (r.valid.time) {
         dateTime.hours   = r.dateTime.hours;
         dateTime.minutes = r.dateTime.minutes;
@@ -527,6 +565,13 @@ public:
     #ifdef GPS_FIX_SATELLITES
       if (r.valid.satellites)
         satellites = r.satellites;
+    #endif
+
+    #ifdef GPS_TTFF_UPTIME
+      if (r.valid.location) {
+        ttff = r.ttff;
+        uptime = r.uptime;
+      }
     #endif
 
     #ifdef GPS_FIX_HDOP

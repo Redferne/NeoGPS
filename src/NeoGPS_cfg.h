@@ -115,6 +115,8 @@
     defined(ARDUINO_SAMD_ZERO)    | \
     defined(ARDUINO_SAM_DUE)      | \
     defined(ARDUINO_ARCH_ARC32)   | \
+    defined(NRF51)                | \
+    defined(NRF52)                | \
     defined(__TC27XX__)           | \
     (defined(TEENSYDUINO) && (TEENSYDUINO < 139))
   #undef pgm_read_ptr
