@@ -1321,7 +1321,7 @@ bool NMEAGPS::parseFloat( uint16_t & val, char chr, uint8_t max_decimal )
   } else if (validateChars() && !isdigit(chr)) {
     sentenceInvalid();
   } else if (!decimal || (decimal++ <= max_decimal)) {
-    if (validateFields() && 
+    if (validateFields() &&
         ((val > 6553) || ((val == 6553) && (chr > '5'))))
       sentenceInvalid();
     else
@@ -2004,6 +2004,9 @@ void NMEAGPS::poll( Stream *device, nmea_msg_t msg )
   #if defined(NMEAGPS_PARSE_ZDA) | defined(NMEAGPS_RECOGNIZE_ALL)
     static const char zda[] __PROGMEM = "EIGPQ,ZDA";
   #endif
+  #if defined(NMEAGPS_PARSE_TXT) | defined(NMEAGPS_RECOGNIZE_ALL)
+    static const char txt[] __PROGMEM = "EIGPQ,TXT";
+  #endif
 
   static const char * const poll_msgs[] __PROGMEM =
     {
@@ -2029,7 +2032,12 @@ void NMEAGPS::poll( Stream *device, nmea_msg_t msg )
         vtg,
       #endif
       #if defined(NMEAGPS_PARSE_ZDA) | defined(NMEAGPS_RECOGNIZE_ALL)
-        zda
+        zda,
+      #endif
+      #if 0
+      #if defined(NMEAGPS_PARSE_ZDA) | defined(NMEAGPS_RECOGNIZE_ALL)
+        txt
+      #endif
       #endif
     };
 
@@ -2042,6 +2050,22 @@ void NMEAGPS::poll( Stream *device, nmea_msg_t msg )
 } // poll
 
 //----------------------------------------------------------------
+
+static void send_trailer( Stream & port, uint8_t crc )
+{
+  port.print('*');
+
+  char hexDigit = formatHex( crc>>4 );
+  port.print( hexDigit );
+
+  hexDigit = formatHex( crc );
+  port.print( hexDigit );
+
+  port.print( CR );
+  port.print( LF );
+
+} // send_trailer
+
 
 static void send_trailer( Stream *device, uint8_t crc )
 {
@@ -2083,6 +2107,33 @@ void NMEAGPS::send( Stream *device, const char *msg )
 } // send
 
 //----------------------------------------------------------------
+
+void NMEAGPS::send_P( Stream &port, const __FlashStringHelper *msg )
+{
+  if (msg) {
+    const char *ptr = (const char *)msg;
+          char  chr = pgm_read_byte(ptr++);
+
+    port.print('$');
+    if (chr == '$')
+      chr = pgm_read_byte(ptr++);
+    uint8_t sent_trailer = 0;
+    uint8_t crc          = 0;
+    while (chr) {
+      if ((chr == '*') || (sent_trailer > 0))
+        sent_trailer++;
+      else
+        crc ^= chr;
+      port.print( chr );
+
+      chr = pgm_read_byte(ptr++);
+    }
+
+    if (!sent_trailer)
+      send_trailer( port, crc );
+  }
+
+} // send_P
 
 void NMEAGPS::send_P( Stream *device, const __FlashStringHelper *msg )
 {

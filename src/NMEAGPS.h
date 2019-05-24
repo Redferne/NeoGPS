@@ -89,6 +89,12 @@ public:
           NMEA_ZDA,
         #endif
 
+        #if 0
+        #if defined(NMEAGPS_PARSE_TXT) | defined(NMEAGPS_RECOGNIZE_ALL)
+          NMEA_TXT,
+        #endif
+        #endif
+
         NMEAMSG_END // a bookend that tells how many enums there were
       };
 
@@ -332,6 +338,7 @@ public:
 
     static void send( Stream *device, const char *msg );
     static void send_P( Stream *device, const __FlashStringHelper *msg );
+    static void send_P( Stream &port, const __FlashStringHelper *msg );
 
   #include "NMEAGPSprivate.h"
 

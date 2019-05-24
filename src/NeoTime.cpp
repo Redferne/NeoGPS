@@ -18,7 +18,7 @@
 #include "NeoTime.h"
 
 // For strtoul declaration
-#include <stdlib.h>
+//#include <stdlib.h>
 
 #include <Print.h>
 
@@ -46,6 +46,7 @@ Print & operator<<( Print& outs, const NeoGPS::time_t& t )
 
 using NeoGPS::time_t;
 
+#if defined (USE_STDLIB)
 bool time_t::parse(str_P s)
 {
   static size_t BUF_MAX = 32;
@@ -80,6 +81,7 @@ bool time_t::parse(str_P s)
 
   return (is_valid());
 }
+#endif
 
 #ifdef TIME_EPOCH_MODIFIABLE
   uint16_t time_t::s_epoch_year    = Y2K_EPOCH_YEAR;

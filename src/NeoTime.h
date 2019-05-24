@@ -29,6 +29,7 @@ namespace NeoGPS {
 //  If this is not defined, the epoch is a hard-coded constant.
 //     Only epoch accessors are available.
 #define TIME_EPOCH_MODIFIABLE
+//#define USE_STDLIB
 
 /**
  * Number of seconds elapsed since January 1 of the Epoch Year,
@@ -267,7 +268,9 @@ struct time_t {
    * @param[in] s PROGMEM character string with format "YYYY-MM-DD HH:MM:SS".
    * @return success.
    */
+  #if defined (USE_STDLIB)
   bool parse(str_P s);
+  #endif
 
   static const uint8_t days_in[] PROGMEM; // month index is 1..12, PROGMEM
 

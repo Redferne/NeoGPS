@@ -22,15 +22,15 @@
 //  There are 2 ways this file can be used:
 //
 //  I.  AS IS, which tries to *guess* which port a beginner should use.
-//      If you include <SoftwareSerial.h>, <NeoSWSerial.h>, <AltSoftSerial.h>, 
-//      <NeoICSerial.h>  *OR*  <NeoHWSerial.h> before this file (in the INO) 
-//      or on line 152 below, one of those ports will be used for the GPS.  
-//      This file cannot always guess what you want, so you may need to use it 
+//      If you include <SoftwareSerial.h>, <NeoSWSerial.h>, <AltSoftSerial.h>,
+//      <NeoICSerial.h>  *OR*  <NeoHWSerial.h> before this file (in the INO)
+//      or on line 152 below, one of those ports will be used for the GPS.
+//      This file cannot always guess what you want, so you may need to use it
 //      in the 2nd way...
 //
-//  II. *REPLACE EVERYTHING* in this file to *specify* which port and 
+//  II. *REPLACE EVERYTHING* in this file to *specify* which port and
 //      which library you want to use for that port.  Just declare the
-//      port here.  You must declare three things: 
+//      port here.  You must declare three things:
 //
 //         1) the "gpsPort" variable (used by all example programs),
 //         2) the string for the GPS_PORT_NAME (displayed by all example programs), and
@@ -42,19 +42,19 @@
 //
 //      Choosing the serial port connection for your GPS device is probably
 //      the most important design decision, because it has a tremendous impact
-//      on the processor load.  Here are the possible configurations, 
+//      on the processor load.  Here are the possible configurations,
 //      from BEST to WORST:
 //
-// ---  The BEST choice is to use a HardwareSerial port. You could use Serial 
-//      on any board, but you will have to disconnect the Arduino RX pin 0 
-//      from the GPS TX pin to upload a new sketch over USB.  This is a very 
+// ---  The BEST choice is to use a HardwareSerial port. You could use Serial
+//      on any board, but you will have to disconnect the Arduino RX pin 0
+//      from the GPS TX pin to upload a new sketch over USB.  This is a very
 //      reliable connection:
 //
 //             #define gpsPort Serial
 //             #define GPS_PORT_NAME "Serial"
 //             #define DEBUG_PORT Serial
 //
-//      If you have a Mega, Leo or Due board, you could use Serial1, 
+//      If you have a Mega, Leo or Due board, you could use Serial1,
 //      Serial2 or Serial3:
 //
 //             #define gpsPort Serial1
@@ -104,13 +104,13 @@
 //             #define DEBUG_PORT Serial
 //
 //      NeoSWSerial supports handling GPS characters in an Interrupt Service
-//      Routine (see NMEA_isr.INO).  If you want to do that, also uncomment 
+//      Routine (see NMEA_isr.INO).  If you want to do that, also uncomment
 //      NMEAGPS_INTERRUPT_PROCESSING in NMEAGPS_cfg.h.
 //
 // ---  The WORST choice is SoftwareSerial.  IT IS NOT RECOMMENDED because
 //      it disables interrupts for the entire time a character is sent OR
 //      received.  This interferes with other parts of your sketch or with
-//      other libraries.  It prevents receiving or sending data on any other 
+//      other libraries.  It prevents receiving or sending data on any other
 //      port.  It cannot transmit and receive at the same time.  95% of the
 //      CPU time will be spent twiddling its thumbs.  It may support 57600,
 //      but 115200 is rarely reliable.
@@ -120,7 +120,7 @@
 //             #define GPS_PORT_NAME "SoftwareSerial(8,9)"
 //             #define DEBUG_PORT Serial
 //
-//      You should *seriously* consider using other pins or lower baud rates, 
+//      You should *seriously* consider using other pins or lower baud rates,
 //      so that you could use one of the other recommended ports.
 //-----------------------------------------------------------
 
@@ -133,7 +133,7 @@
 
   #if SERIAL_PORT_HARDWARE_OPEN == Serial1
 
-    //  This Arduino has more than one hardware serial port, 
+    //  This Arduino has more than one hardware serial port,
     //      use Serial1 (or NeoSerial1).
     #define NEOGPS_USE_SERIAL1
 
@@ -197,12 +197,12 @@
     #define gpsPort Serial
     #define GPS_PORT_NAME "Serial"
     #warning Using Serial for GPS connection.
-    
+
     // You will see this warning if you want to use Serial for the GPS, because no
     // software serial port libraries were included.  That is a good choice.
     //
-    // To use a different serial port for GPS device, you must include a serial header 
-    // before "#include GPSport.h" in the INO.  It may be simpler to replace the 
+    // To use a different serial port for GPS device, you must include a serial header
+    // before "#include GPSport.h" in the INO.  It may be simpler to replace the
     // entire contents of this file with your own declarations.  Follow the
     // instructions above for declaring your own "gpsPort" variable. Everything else
     // in this file should be deleted. See Installation instructions for more
@@ -239,7 +239,7 @@
                   ", TX pin " xstr(TX_PIN) " )"
 
   #ifdef NEOGPS_USE_SERIAL1
-    //  If you *really* want to do this, or you just happened to include 
+    //  If you *really* want to do this, or you just happened to include
     //  a software serial library header for something else, you're
     //  better off *not* including this file.  Just declare
     //  your own gpsPort in your INO file.
