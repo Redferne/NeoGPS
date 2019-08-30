@@ -449,11 +449,14 @@ namespace ublox {
           {
             init();
             portid = 1; // UART 1
-            mode.a4_compat = 1;
+            mode = {0};
+            txready = {0};
+            mode.a4_compat = 0;
             mode.charlen = 3; // 8
             mode.parity = 4;  // N
             mode.stopbits = 0; // 1
             inprotomask = outprotomask = proto; // 1 = UBX, 2 = NMEA, 3=BOTH
+            reserved0 = reserved4 = reserved5 = 0;
           }
 
     }  __attribute__((packed));

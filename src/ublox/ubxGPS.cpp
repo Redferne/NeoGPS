@@ -335,6 +335,7 @@ PRINTF(" OK\n\r");
 void ubloxGPS::wait_for_idle()
 {
   // Wait for the input buffer to be emptied
+//  printf("W4I\n\r");
   for (uint8_t waits=0; waits < 16; waits++) {
     run();
     if (!receiving() || !waiting())
@@ -347,7 +348,7 @@ void ubloxGPS::wait_for_idle()
 
 bool ubloxGPS::wait_for_ack()
 {
-  m_device->flush();
+//  m_device->flush();
 
   uint16_t sent              = 0;
   uint16_t idle_time         = 0;
@@ -356,6 +357,7 @@ bool ubloxGPS::wait_for_ack()
   do {
     if (receiving()) {
       uint8_t rx_chars = m_device->available();
+//      printf("\n\rRX: %d\n\r", rx_chars);
       wait_for_idle();
       sent = millis();
 
@@ -388,11 +390,14 @@ bool ubloxGPS::wait_for_ack()
       // Idle, accumulate time
       uint16_t ms = millis();
       if (sent != 0)
-        idle_time += ms-sent;
+        idle_time += (ms-sent); // + 1;
+      else
+        idle_time += 1;
       sent = ms;
+//      printf("\n\rI: %d RI: %d\n\r", idle_time, removed_idle_time);
       run();
     }
-  } while ((idle_time < 600) && ((removed_idle_time+idle_time) < 4*600));
+  } while ((idle_time < 1200) && ((removed_idle_time+idle_time) < 4*1200));
 
   //Serial.print( F("! -") );
   //Serial.println( removed_idle_time );
@@ -489,6 +494,7 @@ bool ubloxGPS::send( const msg_t & msg, msg_t *reply_msg )
   }
 
   if (waiting()) {
+//    printf("\n\rW4A\n\r");
     ok = wait_for_ack();
 
     #if 0
